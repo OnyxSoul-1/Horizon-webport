@@ -53,12 +53,16 @@
       fail("This browser does not support WebAssembly.");
     }
 
+    function isolationHint() {
+      return window.crossOriginIsolated ? "" :
+        "\n\nThis game needs shared memory (cross-origin isolation). On GitHub Pages that comes from sw.js: let the page reload once after the first visit.";
+    }
     window.addEventListener("error", function (e) {
-      fail(e.message || "Unknown script error");
+      fail((e.message || "Unknown script error") + isolationHint());
     });
     window.addEventListener("unhandledrejection", function (e) {
       var r = e.reason;
-      fail((r && (r.message || String(r))) || "Unknown loading error");
+      fail(((r && (r.message || String(r))) || "Unknown loading error") + isolationHint());
     });
 
     // Hide the status once the game's canvas appears.
@@ -83,6 +87,5 @@
 </script>
 
 <script type="module" src="main.js"></script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"0968594361ae4c46b087f45e5c87b332","r":1,"spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
