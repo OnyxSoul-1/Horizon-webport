@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizon</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body > canvas { display: block; width: 100vw !important; height: 100vh !important; outline: none; }
+  #status {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #ddd; font: 16px/1.5 system-ui, sans-serif; text-align: center; padding: 16px;
+    pointer-events: none; white-space: pre-line;
+  }
+  #status:empty { display: none; }
+</style>
+</head>
+<body>
+<div id="status">Starting…</div>
+<script type="module" src="main.js"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"0968594361ae4c46b087f45e5c87b332","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
