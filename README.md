@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="#"><b>Website</b></a> ·
+  <a href="https://onyxsoul-1.github.io/Horizon-webport/"><b>Website</b></a> ·
   <a href="#download"><b>Download</b></a> ·
   <a href="#"><b>Docs</b></a> ·
 </p>
