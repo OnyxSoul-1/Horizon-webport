@@ -2,21 +2,86 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Horizon</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   body > canvas { display: block; width: 100vw !important; height: 100vh !important; outline: none; }
+
   #status {
-    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
     color: #ddd; font: 16px/1.5 system-ui, sans-serif; text-align: center; padding: 16px;
-    pointer-events: none; white-space: pre-line;
+    pointer-events: none; white-space: pre-line; z-index: 5;
   }
   #status:empty { display: none; }
+  #status.error { color: #ff8a8a; pointer-events: auto; user-select: text; }
+
+  #spinner {
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 4px solid #333; border-top-color: #6fd36f;
+    animation: spin 0.9s linear infinite;
+  }
+  #status.error #spinner, #status:empty #spinner { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { #spinner { animation-duration: 3s; } }
 </style>
 </head>
 <body>
-<div id="status">Starting…</div>
+<div id="status"><div id="spinner"></div><div id="status-text">Starting…</div></div>
+
+<script>
+  // Shows loading text and any error on screen so a black page is never a mystery.
+  (function () {
+    var box = document.getElementById("status");
+    var text = document.getElementById("status-text");
+
+    function fail(msg) {
+      box.classList.add("error");
+      text.textContent = "Horizon could not start.\n\n" + msg +
+        "\n\nOpen the browser console (F12) for details.";
+    }
+
+    // Browser support check
+    var probe = document.createElement("canvas");
+    var hasGL = !!(probe.getContext("webgl2") || probe.getContext("webgl"));
+    var hasGPU = "gpu" in navigator;
+    if (!hasGL && !hasGPU) {
+      fail("This browser has no WebGL or WebGPU. Try a recent Chrome or Edge with hardware acceleration on.");
+    }
+    if (typeof WebAssembly !== "object") {
+      fail("This browser does not support WebAssembly.");
+    }
+
+    window.addEventListener("error", function (e) {
+      fail(e.message || "Unknown script error");
+    });
+    window.addEventListener("unhandledrejection", function (e) {
+      var r = e.reason;
+      fail((r && (r.message || String(r))) || "Unknown loading error");
+    });
+
+    // Hide the status once the game's canvas appears.
+    var obs = new MutationObserver(function () {
+      var c = document.querySelector("body > canvas");
+      if (c && !box.classList.contains("error")) {
+        text.textContent = "";
+        box.innerHTML = "";
+        c.tabIndex = 0;
+        c.focus();
+        document.addEventListener("click", function () { c.focus(); });
+        obs.disconnect();
+      }
+    });
+    obs.observe(document.body, { childList: true });
+
+    // Opening the file directly (file://) blocks modules and wasm.
+    if (location.protocol === "file:") {
+      fail("Open this page from a web server, not as a file.\nExample: run  python3 -m http.server  in this folder, then visit http://localhost:8000");
+    }
+  })();
+</script>
+
 <script type="module" src="main.js"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"0968594361ae4c46b087f45e5c87b332","r":1,"spa":2}' crossorigin="anonymous"></script>
 </body>
