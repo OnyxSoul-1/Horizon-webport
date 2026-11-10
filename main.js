@@ -48,14 +48,60 @@ async function cacheWorker() {
     sessionStorage.removeItem("horizon-isolating");
 }
 
-// The large files' addresses with their content hash (build.json), which the
-// service worker keeps them by.
+// Where the files are in THIS repo. The wasm is stored as four parts (GitHub
+// limits each file to 100 MB) and is joined again here in the browser.
+const WASM_PARTS = 4;
+const WASM_BASE = "pkg/horizon-client_bg.wasm.part";
+const BOOT_PATH = "pkg/boot.tar.gz";
+const MANIFEST_PATH = "manifest.txt";
+// Change this number whenever you upload new wasm parts or a new boot.tar.gz,
+// so the service worker drops its old copy.
+const FILES_VERSION = "1";
+
+// The large files' addresses with a version, which the service worker keeps
+// them by (a hash from build.json when it has one).
 async function versioned() {
     const files = await fetch("build.json", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : {}))
         .catch(() => ({}));
-    const at = (path) => (files[path] ? `${path}?v=${files[path]}` : path);
-    return { wasm: at("pkg/horizon-client_bg.wasm"), boot: at("fs/boot.tar.gz") };
+    const at = (path) => `${path}?v=${files[path] || FILES_VERSION}`;
+    const parts = [];
+    for (let i = 1; i <= WASM_PARTS; i++) parts.push(at(`${WASM_BASE}${i}`));
+    return { parts, boot: at(BOOT_PATH) };
+}
+
+// Downloads the wasm parts side by side and joins them into one Uint8Array.
+async function downloadParts(urls, label) {
+    const got = urls.map(() => 0);
+    const total = urls.map(() => 0);
+    const show = () => {
+        const g = got.reduce((a, b) => a + b, 0);
+        const t = total.reduce((a, b) => a + b, 0);
+        status.textContent = total.every(Boolean)
+            ? `${label} ${Math.min(100, Math.round((g / t) * 100))}%`
+            : `${label} ${Math.round(g / 1048576)} MB`;
+    };
+    const chunks = await Promise.all(urls.map(async (url, i) => {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`);
+        total[i] = Number(response.headers.get("Content-Length")) || 0;
+        const list = [];
+        const reader = response.body.getReader();
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            list.push(value);
+            got[i] += value.length;
+            show();
+        }
+        return list;
+    }));
+    let size = 0;
+    for (const list of chunks) for (const c of list) size += c.length;
+    const joined = new Uint8Array(size);
+    let at = 0;
+    for (const list of chunks) for (const c of list) { joined.set(c, at); at += c.length; }
+    return joined;
 }
 
 async function download(url, label) {
@@ -224,12 +270,14 @@ async function served() {
     const files = await versioned();
     status.textContent = "Loading the game…";
     const glue = await import("./pkg/horizon-client.js");
+    const wasm = await downloadParts(files.parts, "Downloading the game");
+    status.textContent = "Starting the game…";
     // Runs the game's main, which only registers the game to start.
-    await glue.default({ module_or_path: files.wasm });
+    await glue.default({ module_or_path: wasm });
     const gz = await download(files.boot, "Downloading resources");
     const tar = new Uint8Array(
         await new Response(gz.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
-    const manifest = await (await fetch("fs/manifest.txt")).text();
+    const manifest = await (await fetch(MANIFEST_PATH)).text();
     return { glue, tar, manifest, base: "fs/res/" };
 }
 
