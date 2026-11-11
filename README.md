@@ -75,4 +75,4 @@ Prepared files land in the gitignored `.local/`: never commit or share them. Opt
 
 NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT. Minecraft is a trademark of Mojang Synergies AB; its code and assets belong to Mojang and Microsoft under the [Minecraft EULA](https://www.minecraft.net/en-us/eula).
 
-The browser port is by [OnyxSoul-1](https://github.com/OnyxSoul-1).
+Webport by [Onyx$oul-1](https://github.com/OnyxSoul-1).
