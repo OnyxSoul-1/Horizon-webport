@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Horizon</title>
+
+<!-- FAVICON -->
+<link rel="icon" type="image/webp" href="https://i.postimg.cc/3xpyKyf9/31e9ecb1-a9cd-4218-b431-f90808a6339a.webp">
+
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
   body > canvas { display: block; width: 100vw !important; height: 100vh !important; outline: none; }
@@ -23,16 +27,26 @@
   }
   #status.error { color: #ff8a8a; pointer-events: auto; user-select: text; }
   #status.error::before { display: none; }
+  
+  /* RAINBOW CREDIT STYLE */
   #credit {
     position: fixed; z-index: 1; bottom: 8px; left: 50%;
-    transform: translateX(-50%); color: #fff;
-    font: 13px/1.2 monospace; text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+    transform: translateX(-50%);
+    font: bold 14px monospace;
     white-space: nowrap; pointer-events: none;
+    background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff, #ff0000);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: rainbow 3s linear infinite;
   }
-  #credit a { color: inherit; pointer-events: auto; text-decoration: none; }
-  #credit a:hover, #credit a:focus-visible { text-decoration: underline; }
+
+  @keyframes rainbow { to { background-position: 200% center; } }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { #status::before { animation-duration: 3s; } }
+  @media (prefers-reduced-motion: reduce) { 
+    #status::before { animation-duration: 3s; }
+    #credit { animation: none; background: none; -webkit-text-fill-color: #fff; }
+  }
 </style>
 </head>
 <body>
@@ -46,7 +60,10 @@
     }).observe(box, { childList: true, characterData: true, subtree: true });
   })();
 </script>
-<div id="credit">Webport by <a href="https://github.com/OnyxSoul-1" target="_blank" rel="noopener noreferrer">Onyx$oul-1</a></div>
+
+<!-- YOUR RAINBOW CREDIT -->
+<div id="credit">Webport by Onyx$oul-1</div>
+
 <script type="module" src="main.js"></script>
 </body>
 </html>
