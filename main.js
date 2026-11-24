@@ -4,21 +4,46 @@
 // keeps the large files for later visits.
 import "./audio.js"; // before the game's glue, which keeps the AudioContext it finds
 
-// Debug: log the GPU and any GPU errors (remove once the block bug is found).
+// Debug: show the GPU and any GPU errors in a small box on the page (and in the
+// console). It stays on top of the game, so a screen recording shows it.
+// Remove this block once the block bug is found.
+const dbgLines = [];
+let dbgBox = null;
+function dbg(text, bad) {
+    console[bad ? "error" : "log"](text);
+    try {
+        if (!dbgBox) {
+            dbgBox = document.createElement("div");
+            dbgBox.style.cssText = "position:fixed;left:4px;bottom:60px;z-index:99999;max-width:70vw;" +
+                "background:rgba(0,0,0,.75);font:11px monospace;padding:4px;pointer-events:none;white-space:pre-wrap";
+            document.body.appendChild(dbgBox);
+        }
+        dbgLines.push({ text: String(text).slice(0, 170), bad });
+        while (dbgLines.length > 14) dbgLines.shift();
+        dbgBox.replaceChildren(...dbgLines.map((l) => {
+            const d = document.createElement("div");
+            d.style.color = l.bad ? "#ff6060" : "#60ff60";
+            d.textContent = l.text;
+            return d;
+        }));
+    } catch (e) {}
+}
 if (navigator.gpu && typeof GPUAdapter !== "undefined") {
     const origRequest = GPUAdapter.prototype.requestDevice;
     GPUAdapter.prototype.requestDevice = async function (desc) {
         try {
             const info = this.info ?? {};
-            console.log("Horizon GPU:", info.vendor, info.architecture, info.device, info.description);
-            console.log("Horizon GPU features:", [...this.features].join(", "));
+            const l = this.limits;
+            dbg(`GPU: ${info.vendor} | ${info.architecture} | ${info.device} | ${info.description}`);
+            dbg(`maxBufferSize ${l.maxBufferSize}, maxStorageBuf ${l.maxStorageBufferBindingSize}, maxTex2D ${l.maxTextureDimension2D}, texLayers ${l.maxTextureArrayLayers}`);
+            dbg(`features: ${[...this.features].length}, requested: ${JSON.stringify(desc?.requiredFeatures ?? [])}`);
             console.log("Horizon GPU limits:", JSON.stringify(Object.fromEntries(
-                Object.keys(Object.getPrototypeOf(this.limits)).map((k) => [k, this.limits[k]]))));
+                Object.keys(Object.getPrototypeOf(l)).map((k) => [k, l[k]]))));
             console.log("Horizon GPU requested:", JSON.stringify(desc));
         } catch (e) {}
         const device = await origRequest.call(this, desc);
-        device.addEventListener("uncapturederror", (e) => console.error("Horizon GPU error:", e.error.message));
-        device.lost.then((i) => console.error("Horizon GPU device lost:", i.reason, i.message));
+        device.addEventListener("uncapturederror", (e) => dbg(`GPU error: ${e.error.message}`, true));
+        device.lost.then((i) => dbg(`GPU device lost: ${i.reason} ${i.message}`, true));
         return device;
     };
 }
@@ -270,7 +295,7 @@ function saveChanges(glue, root) {
         const t = performance.now();
         const changes = glue.horizon_take_changes();
         const took = Math.round(performance.now() - t);
-        if (took > 8) console.warn(`Horizon: take_changes ${took} ms, ${changes.length} files`);
+        if (took > 8) dbg(`save stall: take_changes ${took} ms, ${changes.length} files`, true);
         for (const [path, kind, data] of changes) {
             try {
                 await apply(root, path, kind, data);
