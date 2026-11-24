@@ -4,6 +4,25 @@
 // keeps the large files for later visits.
 import "./audio.js"; // before the game's glue, which keeps the AudioContext it finds
 
+// Debug: log the GPU and any GPU errors (remove once the block bug is found).
+if (navigator.gpu && typeof GPUAdapter !== "undefined") {
+    const origRequest = GPUAdapter.prototype.requestDevice;
+    GPUAdapter.prototype.requestDevice = async function (desc) {
+        try {
+            const info = this.info ?? {};
+            console.log("Horizon GPU:", info.vendor, info.architecture, info.device, info.description);
+            console.log("Horizon GPU features:", [...this.features].join(", "));
+            console.log("Horizon GPU limits:", JSON.stringify(Object.fromEntries(
+                Object.keys(Object.getPrototypeOf(this.limits)).map((k) => [k, this.limits[k]]))));
+            console.log("Horizon GPU requested:", JSON.stringify(desc));
+        } catch (e) {}
+        const device = await origRequest.call(this, desc);
+        device.addEventListener("uncapturederror", (e) => console.error("Horizon GPU error:", e.error.message));
+        device.lost.then((i) => console.error("Horizon GPU device lost:", i.reason, i.message));
+        return device;
+    };
+}
+
 const ROOT = ".local/horizon-client/26.3";
 const status = document.getElementById("status");
 
@@ -248,7 +267,11 @@ async function apply(root, path, kind, data) {
 let saving = null;
 function saveChanges(glue, root) {
     saving ??= (async () => {
-        for (const [path, kind, data] of glue.horizon_take_changes()) {
+        const t = performance.now();
+        const changes = glue.horizon_take_changes();
+        const took = Math.round(performance.now() - t);
+        if (took > 8) console.warn(`Horizon: take_changes ${took} ms, ${changes.length} files`);
+        for (const [path, kind, data] of changes) {
             try {
                 await apply(root, path, kind, data);
             } catch (e) {
