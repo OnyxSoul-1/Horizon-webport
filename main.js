@@ -4,19 +4,6 @@
 // keeps the large files for later visits.
 import "./audio.js"; // before the game's glue, which keeps the AudioContext it finds
 
-// Test switch: opening the page with ?safe asks the GPU for one feature less
-// (indirect draws with a first instance), which some graphics drivers handle
-// badly. Without ?safe nothing here runs.
-if (new URLSearchParams(location.search).has("safe") && navigator.gpu && typeof GPUAdapter !== "undefined") {
-    const requestDevice = GPUAdapter.prototype.requestDevice;
-    GPUAdapter.prototype.requestDevice = function (desc) {
-        if (desc?.requiredFeatures) {
-            desc = { ...desc, requiredFeatures: desc.requiredFeatures.filter((f) => f !== "indirect-first-instance") };
-        }
-        return requestDevice.call(this, desc);
-    };
-}
-
 const ROOT = ".local/horizon-client/26.3";
 const status = document.getElementById("status");
 
@@ -115,43 +102,6 @@ async function downloadParts(urls, label) {
     let at = 0;
     for (const list of chunks) for (const c of list) { joined.set(c, at); at += c.length; }
     return joined;
-}
-
-// Compiles the wasm while the parts arrive, one after the other, so the game
-// never holds a second whole copy of it in memory (this matters on small
-// laptops and Chromebooks). If the browser can't do that, the old way is used.
-async function loadWasm(urls, label) {
-    try {
-        let total = 0;
-        let got = 0;
-        let index = 0;
-        let reader = null;
-        const body = new ReadableStream({
-            async pull(controller) {
-                for (;;) {
-                    if (!reader) {
-                        if (index >= urls.length) return controller.close();
-                        const response = await fetch(urls[index++]);
-                        if (!response.ok) throw new Error(`${response.url}: ${response.status} ${response.statusText}`);
-                        total += Number(response.headers.get("Content-Length")) || 0;
-                        reader = response.body.getReader();
-                    }
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        reader = null;
-                        continue;
-                    }
-                    got += value.length;
-                    status.textContent = `${label} ${Math.round(got / 1048576)} MB`;
-                    return controller.enqueue(value);
-                }
-            },
-        });
-        return await WebAssembly.compileStreaming(new Response(body, { headers: { "Content-Type": "application/wasm" } }));
-    } catch (e) {
-        console.warn(`Horizon: low-memory loading failed, using the normal way: ${e}`);
-        return downloadParts(urls, label);
-    }
 }
 
 async function download(url, label) {
@@ -320,7 +270,7 @@ async function served() {
     const files = await versioned();
     status.textContent = "Loading the game…";
     const glue = await import("./pkg/horizon-client.js");
-    const wasm = await loadWasm(files.parts, "Downloading the game");
+    const wasm = await downloadParts(files.parts, "Downloading the game");
     status.textContent = "Starting the game…";
     // Runs the game's main, which only registers the game to start.
     await glue.default({ module_or_path: wasm });
